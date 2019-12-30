@@ -7,6 +7,10 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+footer {
+  margin: 1em;
+}
+
 .service-list {
   padding: 1em;
 }

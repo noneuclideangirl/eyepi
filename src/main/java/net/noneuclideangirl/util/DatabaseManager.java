@@ -7,6 +7,7 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.IndexOptions;
+import net.noneuclideangirl.data.ServiceDescriptor;
 import net.noneuclideangirl.functional.Option;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -55,6 +56,10 @@ public class DatabaseManager {
     private void createCollection() {
         log.info("Creating unique index on \"name\"");
         services.createIndex(Document.parse("{name:1}"), new IndexOptions().unique(true));
+    }
+
+    public void createService(ServiceDescriptor service) {
+        services.insertOne(service.toDoc());
     }
 
     /**

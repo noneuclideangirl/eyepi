@@ -15,12 +15,15 @@ class Service extends React.Component {
     };
     logboxId = this.props.name + "-logbox";
 
+    // Refresh the uptime counter. If this service is active, request the uptime; otherwise, hide the timer component.
     refreshUptime() {
       if (this.props.active) {
         requestServiceStartTime(this.props.name)
           .then(result => {
-            const timestamp = parseInt(result.data.$numberLong);
-            this.setState({ startTime: timestamp});
+            if (result.status) {
+              const timestamp = parseInt(result.data.$numberLong);
+              this.setState({ startTime: timestamp});
+            }
           });
       } else {
         this.setState({ startTime: undefined });
@@ -40,11 +43,13 @@ class Service extends React.Component {
 
     showLogs() {
       requestServiceLogs(this.props.name).then(result => {
-        this.setState({ showingLog: true });
-        let logbox = document.getElementById(this.logboxId);
-        // replace newlines with the appropriate HTML entity
-        logbox.innerHTML = result.data.replace(/\n/g, '&#13;&#10;');
-        logbox.style.display = 'block';
+        if (result.status) {
+          this.setState({ showingLog: true });
+          let logbox = document.getElementById(this.logboxId);
+          // replace newlines with the appropriate HTML entity
+          logbox.innerHTML = result.data.replace(/\n/g, '&#13;&#10;');
+          logbox.style.display = 'block';
+        }
       });
     }
 
@@ -175,7 +180,7 @@ function App() {
   return (
     <div>
       <ServiceList />
-      <footer>Bottom of the page</footer>
+      <footer>by <a href="https://noneuclideangirl.net/">noneuclideangirl.net</a></footer>
     </div>
   )
 }

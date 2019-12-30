@@ -28,15 +28,18 @@ public class ServiceMonitor {
     private final StringBuilder outputBuffer = new StringBuilder();
     private final Document initialDocument;
     private ProcessData processData;
+    private boolean active = true;
 
     public static long getActiveServiceCount() {
-        return services.size();
+        return services.values().stream().filter(ServiceMonitor::isActive).count();
     }
     public static boolean isActive(ServiceDescriptor service) {
-        return services.containsKey(service);
+        return Option.of(services.get(service))
+                     .map(ServiceMonitor::isActive)
+                     .orElse(false);
     }
     public static boolean stopService(ServiceDescriptor service) {
-        if (services.containsKey(service)) {
+        if (isActive(service)) {
             var processData = services.get(service).processData;
             log.info("Killing process " + processData.pid);
             return Linux.runSynchronously("kill -9 " + processData.pid)
@@ -86,8 +89,23 @@ public class ServiceMonitor {
         }
     }
 
-    private String getLogStamp() {
-        return "[" + new Timestamp(new Date().getTime()).toString().split("\\.")[0] + "] " + descriptor.name + " (eyepi): ";
+    private String getTimestamp() {
+        return "[" + new Timestamp(new Date().getTime()).toString().split("\\.")[0] + "] ";
+    }
+
+    private String getLogPrefix() {
+        return getTimestamp() + descriptor.name + " (eyepi): ";
+    }
+
+    private boolean tryCleanupService(ServiceDescriptor service) {
+        if (isActive(service)) {
+            return false;
+        } else {
+            // Remove zombie monitor if it's there
+            Option.of(services.get(service))
+                  .ifSome(ServiceMonitor::cleanup);
+            return true;
+        }
     }
 
     private void run() {
@@ -95,19 +113,35 @@ public class ServiceMonitor {
         descriptor = ServiceDescriptor.fromDoc(initialDocument).unwrap();
         log.info("Monitor thread for service \"" + descriptor.name + "\" created.");
 
-        if (!isActive()) {
+        if (tryCleanupService(descriptor)) {
             try (var fw = new FileWriter(getLogPath())) {
                 Process process = Runtime.getRuntime().exec(descriptor.exec);
                 var pid = process.pid();
                 var spawnTime = Instant.now().getEpochSecond() * 1000;
+
+                synchronized (outputBuffer) {
+                    outputBuffer.append(getTimestamp())
+                            .append("<started>\n");
+                }
+                fw.write(getTimestamp() + "<started>\n");
 
                 services.put(descriptor, this);
                 processData = new ProcessData(pid, spawnTime);
                 var br = new BufferedReader(new InputStreamReader(process.getInputStream()));
                 int c;
 
-                fw.write(getLogStamp());
+                fw.write(getLogPrefix());
+                boolean writePrefix = true;
+                boolean lastWroteNewline = false;
+
                 while ((c = br.read()) != -1) {
+                    if (writePrefix) {
+                        synchronized (outputBuffer) {
+                            outputBuffer.append(getLogPrefix());
+                        }
+                        fw.write(getLogPrefix());
+                        writePrefix = false;
+                    }
                     synchronized (outputBuffer) {
                         outputBuffer.append(Character.toChars(c));
                     }
@@ -115,13 +149,25 @@ public class ServiceMonitor {
 
                     if (c == '\n') {
                         fw.flush();
-                        fw.write(getLogStamp());
+                        writePrefix = true;
+                        lastWroteNewline = true;
+                    } else {
+                        lastWroteNewline = false;
                     }
                 }
                 process.waitFor();
+                active = false;
                 log.warn("Service \"" + descriptor.name + "\" exited.");
+
+                synchronized (outputBuffer) {
+                    if (!lastWroteNewline) {
+                        outputBuffer.append("\n");
+                    }
+                    outputBuffer.append(getTimestamp())
+                                .append("<exited>\n");
+                }
+                fw.write((lastWroteNewline ? "" : "\n") + getTimestamp() + "<exited>\n");
                 process.destroy();
-                services.remove(descriptor);
             } catch (IOException e) {
                 log.error("Service \"" + descriptor.name + "\": Failed running command \"" + descriptor.exec + "\": "
                         + e.getClass().getName() + ": " + e.getMessage());
@@ -133,12 +179,12 @@ public class ServiceMonitor {
         }
     }
 
+    private void cleanup() {
+        services.remove(descriptor);
+        log.info("Monitor thread for service \"" + descriptor.name + "\" destroyed.");
+    }
+
     private boolean isActive() {
-        if (!services.containsKey(descriptor)) {
-            return false;
-        } else {
-            var query = Linux.runSynchronously("ps | grep " + services.get(descriptor) + " | awk '{ print $1 }'");
-            return query.map(result -> result.length() > 0).unwrapOr(false);
-        }
+        return active;
     }
 }

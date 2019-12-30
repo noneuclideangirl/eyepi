@@ -1,6 +1,6 @@
 package net.noneuclideangirl;
 
-import net.noneuclideangirl.commands.*;
+import net.noneuclideangirl.requests.*;
 import net.noneuclideangirl.net.ClientHandler;
 import net.noneuclideangirl.net.CommandHandler;
 import net.noneuclideangirl.util.ConfigManager;
@@ -39,6 +39,7 @@ public class Server {
         commandHandler.registerRequestHandler(new StartServiceRequestHandler());
         commandHandler.registerRequestHandler(new ServiceLogsRequestHandler());
         commandHandler.registerRequestHandler(new ServiceStartTimeRequestHandler());
+        commandHandler.registerRequestHandler(new CreateServiceRequestHandler());
         log.info("Command handlers created.");
     }
 

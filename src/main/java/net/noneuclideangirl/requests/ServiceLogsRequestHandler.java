@@ -1,4 +1,4 @@
-package net.noneuclideangirl.commands;
+package net.noneuclideangirl.requests;
 
 import net.noneuclideangirl.ServiceMonitor;
 import net.noneuclideangirl.data.ServiceDescriptor;

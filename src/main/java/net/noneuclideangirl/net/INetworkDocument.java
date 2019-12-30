@@ -3,7 +3,9 @@ package net.noneuclideangirl.net;
 import org.bson.Document;
 
 public interface INetworkDocument {
-    String marshall();
+    default String marshall() {
+        return toDoc().toJson() + "\n";
+    }
     Document toDoc();
 
     static INetworkDocument from(Document doc) {
