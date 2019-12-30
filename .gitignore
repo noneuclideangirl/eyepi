@@ -1,0 +1,5 @@
+.idea/
+target/
+logs/
+eye-pi.iml
+client/node_modules
