@@ -1,4 +1,4 @@
-package net.noneuclideangirl.util;
+package net.noneuclideangirl;
 
 import com.mongodb.MongoClientSettings;
 import com.mongodb.MongoCredential;
@@ -7,12 +7,19 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.IndexOptions;
+import com.mongodb.client.model.Updates;
 import net.noneuclideangirl.data.ServiceDescriptor;
 import net.noneuclideangirl.functional.Option;
+import net.noneuclideangirl.util.Cache;
+import net.noneuclideangirl.util.ConfigManager;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bson.Document;
+import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class DatabaseManager {
     private static final Logger log = LogManager.getLogger(DatabaseManager.class);
@@ -69,24 +76,50 @@ public class DatabaseManager {
         return services.find();
     }
 
-    public Option<Document> findServiceById(String id) {
+    public Option<ServiceDescriptor> findServiceById(String id) {
         return Option.of(cache.get("service_id_" + id,
-                                   () -> services.find(Filters.eq("_id", new ObjectId(id))).first()));
+                                   () -> services.find(Filters.eq("_id", new ObjectId(id))).first()))
+                     .andThen(ServiceDescriptor::fromDoc);
     }
 
-    public Option<Document> findServiceByName(String name) {
+    public Option<ServiceDescriptor> findServiceByName(String name) {
         return Option.of(cache.get("service_name_" + name,
-                         () -> services.find(Filters.eq("name", name)).first()));
+                         () -> services.find(Filters.eq("name", name)).first()))
+                     .andThen(ServiceDescriptor::fromDoc);
     }
 
-    public Option<Document> findServiceByIdOrName(Document doc) {
-        Option<Document> service = Option.none();
-        if (doc.containsKey("id")) {
-            service = findServiceById(doc.getString("id"));
+    // TODO: I don't think I should have made the database update ServiceMonitor directly, tbh.
+
+    public boolean updateService(String id, Document doc) {
+        List<Bson> updates = new ArrayList<>();
+        Option.of(doc.getString("name")).ifSome(name -> updates.add(Updates.set("name", name)));
+        Option.of(doc.getString("desc")).ifSome(name -> updates.add(Updates.set("desc", name)));
+
+        if (services.updateOne(Filters.eq("_id", new ObjectId(id)),
+                                  Updates.combine(updates)).getMatchedCount() > 0) {
+            ServiceMonitor.changeServiceDescriptor(id, findServiceById(id).unwrap());
+            return true;
+        } else {
+            return false;
         }
-        if (doc.containsKey("name")) {
-            service = findServiceByName(doc.getString("name"));
-        }
-        return service;
+    }
+
+    public boolean deleteServiceByIdOrName(Document doc) {
+        // TODO: This would be a lot nicer if I wrapped the Document class.
+        return Option.of(doc.getString("id"))
+              .map(id -> Filters.eq("_id", new ObjectId(id)))
+              .or(Option.of(doc.getString("name")).map(name -> Filters.eq("name", name)))
+              .andThen(filter -> ServiceDescriptor.fromDoc(services.findOneAndDelete(filter)))
+              .map(desc -> {
+                  ServiceMonitor.purgeService(desc);
+                  return true;
+              })
+              .orElse(false);
+    }
+
+    public Option<ServiceDescriptor> findServiceByIdOrName(Document doc) {
+        return Option.of(doc.getString("id"))
+                     .andThen(this::findServiceById)
+                     .or(Option.of(doc.getString("name")).andThen(this::findServiceByName));
     }
 }

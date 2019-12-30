@@ -4,7 +4,6 @@ import net.noneuclideangirl.requests.*;
 import net.noneuclideangirl.net.ClientHandler;
 import net.noneuclideangirl.net.CommandHandler;
 import net.noneuclideangirl.util.ConfigManager;
-import net.noneuclideangirl.util.DatabaseManager;
 import net.noneuclideangirl.util.ThreadManager;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -40,6 +39,8 @@ public class Server {
         commandHandler.registerRequestHandler(new ServiceLogsRequestHandler());
         commandHandler.registerRequestHandler(new ServiceStartTimeRequestHandler());
         commandHandler.registerRequestHandler(new CreateServiceRequestHandler());
+        commandHandler.registerRequestHandler(new EditServiceRequestHandler());
+        commandHandler.registerRequestHandler(new DeleteServiceRequestHandler());
         log.info("Command handlers created.");
     }
 

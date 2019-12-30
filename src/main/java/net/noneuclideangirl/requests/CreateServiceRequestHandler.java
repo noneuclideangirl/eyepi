@@ -4,7 +4,7 @@ import net.noneuclideangirl.data.ServiceDescriptor;
 import net.noneuclideangirl.functional.Functional;
 import net.noneuclideangirl.net.AbstractRequestHandler;
 import net.noneuclideangirl.net.Response;
-import net.noneuclideangirl.util.DatabaseManager;
+import net.noneuclideangirl.DatabaseManager;
 import org.bson.Document;
 
 public class CreateServiceRequestHandler extends AbstractRequestHandler {

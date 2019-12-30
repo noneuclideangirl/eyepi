@@ -4,7 +4,7 @@ import net.noneuclideangirl.ServiceMonitor;
 import net.noneuclideangirl.data.ServiceDescriptor;
 import net.noneuclideangirl.net.AbstractRequestHandler;
 import net.noneuclideangirl.net.Response;
-import net.noneuclideangirl.util.DatabaseManager;
+import net.noneuclideangirl.DatabaseManager;
 import org.bson.Document;
 
 import java.util.ArrayList;

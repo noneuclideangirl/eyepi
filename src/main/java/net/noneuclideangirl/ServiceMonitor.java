@@ -2,6 +2,7 @@ package net.noneuclideangirl;
 
 import net.noneuclideangirl.data.ProcessData;
 import net.noneuclideangirl.data.ServiceDescriptor;
+import net.noneuclideangirl.functional.Functional;
 import net.noneuclideangirl.functional.Option;
 import net.noneuclideangirl.util.Linux;
 import net.noneuclideangirl.util.ThreadManager;
@@ -24,6 +25,7 @@ public class ServiceMonitor {
     private static final int LOG_HISTORY_SIZE = 50;
     private static final Logger log = LogManager.getLogger(ServiceMonitor.class);
     private static final Map<ServiceDescriptor, ServiceMonitor> services = new ConcurrentHashMap<>();
+
     private ServiceDescriptor descriptor;
     private final StringBuilder outputBuffer = new StringBuilder();
     private final Document initialDocument;
@@ -48,11 +50,15 @@ public class ServiceMonitor {
             return false;
         }
     }
+    public static boolean purgeService(ServiceDescriptor service) {
+        stopService(service);
+        return services.remove(service) != null;
+    }
     public static boolean startService(ServiceDescriptor service) {
         if (isActive(service)) {
             return false;
         } else {
-            new ServiceMonitor(service);
+            new ServiceMonitor(service);https://github.com/noneuclideangirl/eyepi
             return true;
         }
     }
@@ -68,6 +74,20 @@ public class ServiceMonitor {
     public static Option<Long> getServiceStartTime(ServiceDescriptor service) {
         return Option.of(services.get(service))
                 .map(mon -> mon.processData.spawnTime);
+    }
+
+    static void changeServiceDescriptor(String id, ServiceDescriptor newDescriptor) {
+        services.keySet()
+                .stream()
+                .filter(desc -> desc.id.matchThen(id::equals, Functional.supply(false)))
+                .findFirst()
+                .ifPresent(desc -> {
+                    var monitor = services.get(desc);
+                    services.remove(desc);
+                    monitor.descriptor = newDescriptor;
+                    services.put(newDescriptor, monitor);
+                    log.info("Updated descriptor for service \"" + desc.name + "\"");
+                });
     }
 
     ServiceMonitor(Document doc) {
@@ -121,7 +141,7 @@ public class ServiceMonitor {
 
                 synchronized (outputBuffer) {
                     outputBuffer.append(getTimestamp())
-                            .append("<started>\n");
+                                .append("<started>\n");
                 }
                 fw.write(getTimestamp() + "<started>\n");
 

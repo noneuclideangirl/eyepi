@@ -106,7 +106,8 @@ class ServiceList extends React.Component {
         serviceMap[service.name] = {
           name: service.name,
           active: service.active,
-          description: service.desc
+          description: service.desc,
+          id: service.id
         };
       });
       this.setState({
