@@ -139,7 +139,11 @@ public class ServiceMonitor {
 
         if (tryCleanupService(descriptor)) {
             try (var fw = new FileWriter(getLogPath())) {
-                Process process = Runtime.getRuntime().exec(descriptor.exec);
+                ProcessBuilder builder = new ProcessBuilder(descriptor.exec.split(" "));
+                builder.redirectErrorStream(true)
+                       .redirectInput(ProcessBuilder.Redirect.INHERIT);
+
+                var process = builder.start();
                 var pid = process.pid();
                 var spawnTime = Instant.now().getEpochSecond() * 1000;
 
