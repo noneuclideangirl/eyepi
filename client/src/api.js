@@ -50,4 +50,24 @@ function requestServiceLogs(serviceName) {
     });
 }
 
-export { requestListServices, requestStopService, requestStartService, requestServiceStartTime, requestServiceLogs };
+function requestDeleteService(serviceName) {
+    return apiRequest({
+        command: 'DELETE_SERVICE',
+        name: serviceName
+    });
+}
+
+function requestEditService(name, params) {
+    const command = { command: 'EDIT_SERVICE' };
+    return apiRequest({...command, ...params});
+}
+
+export {
+    requestListServices,
+    requestStopService,
+    requestStartService,
+    requestServiceStartTime,
+    requestServiceLogs,
+    requestDeleteService,
+    requestEditService
+};

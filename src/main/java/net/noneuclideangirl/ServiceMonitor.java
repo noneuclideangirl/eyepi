@@ -58,7 +58,7 @@ public class ServiceMonitor {
         if (isActive(service)) {
             return false;
         } else {
-            new ServiceMonitor(service);https://github.com/noneuclideangirl/eyepi
+            new ServiceMonitor(service);
             return true;
         }
     }
@@ -66,9 +66,13 @@ public class ServiceMonitor {
         return Option.of(services.get(service))
               .map(mon -> {
                   String out = mon.getOutput();
+                  log.debug(out.contains("\n"));
                   // Find the nth last newline
-                  int lastIndex = StringUtils.countMatches("\n", out) - LOG_HISTORY_SIZE;
-                  return out.substring(Math.max(0, StringUtils.ordinalIndexOf(out, "\n", lastIndex)));
+                  int lastIndex = StringUtils.countMatches(out, "\n") - LOG_HISTORY_SIZE;
+                  var startFrom = StringUtils.ordinalIndexOf(out, "\n", lastIndex);
+
+                  // Drop the leading newline
+                  return out.substring(startFrom + 1);
               });
     }
     public static Option<Long> getServiceStartTime(ServiceDescriptor service) {
@@ -86,7 +90,7 @@ public class ServiceMonitor {
                     services.remove(desc);
                     monitor.descriptor = newDescriptor;
                     services.put(newDescriptor, monitor);
-                    log.info("Updated descriptor for service \"" + desc.name + "\"");
+                    log.info("Updated descriptor for service \"" + desc.name + "\" (new name " + newDescriptor.name + ")");
                 });
     }
 

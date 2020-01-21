@@ -89,16 +89,20 @@ public class DatabaseManager {
     }
 
     // TODO: I don't think I should have made the database update ServiceMonitor directly, tbh.
-
     public boolean updateService(String id, Document doc) {
         List<Bson> updates = new ArrayList<>();
         Option.of(doc.getString("name")).ifSome(name -> updates.add(Updates.set("name", name)));
-        Option.of(doc.getString("desc")).ifSome(name -> updates.add(Updates.set("desc", name)));
-
-        if (services.updateOne(Filters.eq("_id", new ObjectId(id)),
-                                  Updates.combine(updates)).getMatchedCount() > 0) {
-            ServiceMonitor.changeServiceDescriptor(id, findServiceById(id).unwrap());
-            return true;
+        Option.of(doc.getString("desc")).ifSome(desc -> updates.add(Updates.set("desc", desc)));
+        if (updates.size() > 0) {
+            var original = services.findOneAndUpdate(Filters.eq("_id", new ObjectId(id)), Updates.combine(updates));
+            if (original == null) {
+                return false;
+            } else {
+                Option.of(doc.getString("name")).ifSome(name -> original.append("name", name));
+                Option.of(doc.getString("desc")).ifSome(desc -> original.append("desc", desc));
+                ServiceMonitor.changeServiceDescriptor(id, ServiceDescriptor.fromDoc(original).unwrap());
+                return true;
+            }
         } else {
             return false;
         }

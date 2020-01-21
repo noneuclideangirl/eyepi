@@ -1,5 +1,13 @@
 import React from 'react';
-import { requestListServices, requestStopService, requestStartService, requestServiceStartTime, requestServiceLogs } from './api';
+import {
+  requestListServices,
+  requestStopService,
+  requestStartService,
+  requestServiceStartTime,
+  requestServiceLogs,
+  requestDeleteService,
+  requestEditService
+} from './api';
 import { TimeCounter } from './util';
 
 class Service extends React.Component {
@@ -12,6 +20,7 @@ class Service extends React.Component {
     state = {
       startTime: undefined,
       showingLog: false,
+      editing: false,
     };
     logboxId = this.props.name + "-logbox";
 
@@ -53,6 +62,21 @@ class Service extends React.Component {
       });
     }
 
+    saveChanges() {
+      const newName = document.getElementById("edit-service-name").innerText;
+      const newDesc = document.getElementById("edit-service-desc").innerText;
+
+      let params = {};
+      if (newName !== this.props.name) {
+        params.name = newName;
+      }
+      if (newDesc !== this.props.description) {
+        params.desc = newDesc;
+      }
+
+      this.props.editService(this.props.name, params, () => this.setState({ editing: false }));
+    }
+
     render() {
       let startStopService;
       if (this.props.active) {
@@ -61,8 +85,38 @@ class Service extends React.Component {
         startStopService = (<button onClick={() => this.props.startService(this.props.name)}>Start</button>);
       }
 
-      return (
-        <div>
+      let controls, title, description;
+      if (this.state.editing) {
+        controls = (
+          <div>
+            <button onClick={() => this.saveChanges()}>Save</button>
+          </div>
+        );
+        title = (
+          <div>
+          <span id="edit-service-name" className="service-name" contentEditable>{this.props.name}</span>
+            <span className="status">
+              <span className="status-element">{this.props.active ? "Running" : "Stopped"}</span>
+              {this.state.startTime !== undefined && <TimeCounter startTime={this.state.startTime} />}
+            </span>
+          </div>
+        );
+        description = (
+          <div id="edit-service-desc" contentEditable>
+            {this.props.description}
+          </div>
+        );
+      } else {
+        controls = (
+          <div>
+            <button onClick={() => this.setState({ editing: true })}>Edit</button><br></br>
+            {startStopService}
+            {this.state.showingLog
+              ? (<button onClick={() => this.hideLogs()}>Hide logs</button>)
+              : (<button onClick={() => this.showLogs()}>Show logs</button>)}
+          </div>
+        );
+        title = (
           <div>
             <span className="service-name">{this.props.name}</span>
             <span className="status">
@@ -70,14 +124,19 @@ class Service extends React.Component {
               {this.state.startTime !== undefined && <TimeCounter startTime={this.state.startTime} />}
             </span>
           </div>
+        );
+        description = (
           <div>
             {this.props.description}
           </div>
-          <div>
-            {startStopService}
-            <button onClick={() => this.showLogs()}>Show logs</button>
-            {this.state.showingLog && (<button onClick={() => this.hideLogs()}>Hide</button>)}
-          </div>
+        );
+      }
+
+      return (
+        <div>
+          {title}
+          {description}
+          {controls}
           <textarea spellCheck="false" autoComplete="false" autoCorrect="false" readOnly id={this.logboxId} className="logbox"></textarea>
         </div>
       );
@@ -140,6 +199,16 @@ class ServiceList extends React.Component {
     });
   }
 
+  editService(name, params, callback) {
+    params.id = this.state.services[name].id;
+    requestEditService(name, params).then(result => {
+      if (result.status) {
+        this.loadServices();
+        callback();
+      }
+    });
+  }
+
   componentDidMount() {
     this.interval = setInterval(() => this.loadServices(), 60000);
   }
@@ -164,7 +233,19 @@ class ServiceList extends React.Component {
                           active={service.active}
                           stopService={name => this.stopService(name)}
                           startService={name => this.startService(name)}
+                          editService={(name, params, callback) => this.editService(name, params, callback)}
                         />
+                        <div>
+                          <button onClick={() => {
+                            if (window.confirm("Delete service " + service.name + "?")) {
+                              requestDeleteService(service.name).then(result => {
+                                if (result.status) {
+                                  this.loadServices();
+                                }
+                              });
+                            }
+                          }}>Delete</button>
+                        </div>
                       </li>
                     ))
                 } </ul>)
